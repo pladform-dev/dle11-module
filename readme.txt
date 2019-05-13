@@ -12,7 +12,7 @@
 
 УСТАНОВКА
 
-1. Скачать модуль. Последняя версия тут - https://github.com/pladform-dev/dle-11-module
+1. Скачать модуль. Последняя версия тут - https://github.com/pladform-dev/dle11-module
 2. Скопировать папку pladform в дирректорию ./engine/modules
 3. Скопировать Файл pladform.php в дирректорию ./engine/inc
 4. Изменить права доступа к дирректории ./engine/modules/pladform/storage на запись, выполнив команду:
