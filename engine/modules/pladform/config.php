@@ -3,10 +3,10 @@
 $pladform_config = array (
     
     # Логин в Pladform
-    'login' => 'admin',
+    'login' => 'login',
     
     # Пароль в Pladform
-    'password' => 'ferkalins',
+    'password' => 'password',
     
     # ID плеера в Pladform (создается в личном кабинете Pladform)
     'player_id' => 1,
