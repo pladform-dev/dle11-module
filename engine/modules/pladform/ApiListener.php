@@ -12,13 +12,16 @@ class ApiListener implements JsonListener
     
     private $added_count = 0;
     
-    private $pladform_service;
+    private $report_service;
     
-    public function __construct($db, $config, $pladform_service) 
+    private $logger;
+    
+    public function __construct($db, $config, $report_service, $logger) 
     {
-        $this->db = $db;
-        $this->config = $config;
-        $this->pladform_service = $pladform_service;
+        $this->db             = $db;
+        $this->config         = $config;
+        $this->report_service = $report_service;
+        $this->logger         = $logger;
     }
 
     /**
@@ -29,41 +32,16 @@ class ApiListener implements JsonListener
     {
         $this->all_count ++;
         
+        
         try {
         
             $video = json_decode($jsonObject, true);
-
-            //echo "<pre>";
-            //print_r($video);
+            
+            $this->logger->log("Обработка видео. ID:" . $video['id']);
 
             // Фильтрация
-            // по категориям
-            if (count($this->config['filter_category']) > 0 && !in_array($video['relationships']['category']['id'], $this->config['filter_category'])) {
-                return ;
-            }
-            // по проектам
-            if (count($this->config['filter_project']) > 0 && !in_array($video['relationships']['project']['id'], $this->config['filter_project'])) {
-                return ;
-            }
-            // по жанрам
-            if (count($this->config['filter_project']) > 0)
-            {
-                $is_filtered = true;
-                foreach ($video['meta']['genres'] as $genre) 
-                {
-                    if (in_array($video['relationships']['project']['id'], $this->config['filter_project'])) {
-                        $is_filtered = false;
-                    }
-                }
-                if ($is_filtered) {
-                    return ;
-                }
-            }
-
-
-            $row = $this->db->super_query( "SELECT id FROM " . PREFIX . "_post WHERE alt_name='" . $video['id'] . "'" );
-            if(!$row['id']) 
-            {
+            if (!$this->filter($video))
+            {                
                 // все про категорию
                 $category_id    = $video['relationships']['category']['id'];
                 $category_title = $video['relationships']['category']['title'];
@@ -71,14 +49,15 @@ class ApiListener implements JsonListener
                 if (!isset($this->categories[$category_id])) // если в кеше категории нет, то ищем ее в базе 
                 {
                     $category_alt_name = $this->translit($video['relationships']['category']['title']) . "-" . $category_id;
-                    $row = $this->db->super_query( "SELECT id FROM " . PREFIX . "_category WHERE alt_name='" . $category_alt_name . "'" );
+                    $this->query("SELECT id FROM " . PREFIX . "_category WHERE alt_name='" . $category_alt_name . "'");
+                    $row = $this->db->getRow();
                     if (isset($row['id'])) 
                     {
                         $this->categories[$category_id] = $row['id'];
                     } 
                     else 
                     {
-                        $this->db->query("INSERT INTO " . PREFIX . "_category (name, alt_name) VALUES ('" . $category_title . "','" . $category_alt_name . "') ", false);
+                        $this->query("INSERT INTO " . PREFIX . "_category (name, alt_name) VALUES ('" . $category_title . "','" . $category_alt_name . "') ");
                         $this->categories[$category_id] = $this->db->insert_id();
 
                     }
@@ -146,7 +125,8 @@ class ApiListener implements JsonListener
                 $post_full = str_replace('{SEASON_TITLE}',   $season_title,   $post_full);
                 $post_full = str_replace('{CATEGORY_TITLE}', $category_title, $post_full);
 
-                $this->db->query("INSERT INTO " . PREFIX . "_post ("
+                
+                $this->query("INSERT INTO " . PREFIX . "_post ("
                             . "autor,"
                             . "date,"
                             . "short_story,"
@@ -164,14 +144,16 @@ class ApiListener implements JsonListener
                             . "'" . $post_category_id . "',"
                             . "'" . $video['id'] . "',"
                             . "'" . "1" . "'"
-                        . ") ", false);
+                        . ") ");
+                
                 $post_id = $this->db->insert_id();
 
                 // теги
                 foreach(explode(", ", $video_tags) as $tag)
                 {
-                    if (!empty($tag)) {
-                        $this->db->query("INSERT INTO " . PREFIX . "_tags (news_id, tag) VALUES ('" . $post_id . "','" . $tag . "') ", false);
+                    if (!empty($tag)) 
+                    {
+                        $this->query("INSERT INTO " . PREFIX . "_tags (news_id, tag) VALUES ('" . $post_id . "','" . $tag . "') ");
                     }
                 }
 
@@ -181,10 +163,70 @@ class ApiListener implements JsonListener
             echo $e;
         }
         
-        $this->pladform_service->setDataFileRowParam(PladformService::PARAM_LAST_UPDATE_DATE, time());
-        $this->pladform_service->setDataFileRowParam(PladformService::PARAM_CNT_ALL, $this->all_count);
-        $this->pladform_service->setDataFileRowParam(PladformService::PARAM_CNT_ADDED, $this->added_count);
-        $this->pladform_service->saveData();
+        $this->report_service->update(array(
+            'video_all'         => $this->all_count,
+            'video_added'       => $this->added_count,
+            'last_update_date'  => date("Y-m-d H:i:s")
+        ));
+    }
+    
+    private function filter($video)
+    {
+        $is_filtered = false;
+        
+        // по категориям
+        if (count($this->config['filter_category']) > 0 && !in_array($video['relationships']['category']['id'], $this->config['filter_category'])) 
+        {
+            $this->logger->log("Отфильтровано по категории. ID:" . $video['id']);
+            $is_filtered = true;
+        }
+        
+        // по проектам
+        if (count($this->config['filter_project']) > 0 && !in_array($video['relationships']['project']['id'], $this->config['filter_project'])) 
+        {
+            $this->logger->log("Отфильтровано по проекту. ID:" . $video['id']);
+            $is_filtered = true;
+        }
+        
+        // по жанрам
+        if (count($this->config['filter_project']) > 0)
+        {
+            $is_genre_filtered = true;
+            foreach ($video['meta']['genres'] as $genre) 
+            {
+                if (in_array($video['relationships']['project']['id'], $this->config['filter_project'])) {
+                    $is_genre_filtered = false;
+                }
+            }
+            if ($is_genre_filtered) 
+            {
+                $this->logger->log("Отфильтровано по жанру. ID:" . $video['id']);
+                $is_filtered = true;
+            }
+        }
+
+
+        $this->query("SELECT id FROM " . PREFIX . "_post WHERE alt_name='" . $video['id'] . "'");
+        $row = $this->db->getRow();
+        if(!empty($row['id'])) 
+        {
+            $this->logger->log("Отфильтровано по существующему видео. ID:" . $video['id']);
+            $is_filtered = true;
+        }
+        
+        return $is_filtered;
+    }
+    
+    private function query($query)
+    {
+        $this->logger->log($query);
+        $query_id =$this->db->query($query, false);
+        
+        $mysql_error = mysqli_error($this->db_id);
+        if (!empty($mysql_error))
+        {
+            $this->logger->log($mysql_error);
+        }
     }
 
     public function onStart()

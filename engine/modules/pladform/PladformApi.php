@@ -16,7 +16,9 @@ class PladformApi
     
     private $error = array();
     
-    private $pladform_service;
+    private $report_service;
+    
+    private $logger;
     
     public function setLogin($login) {
         $this->login = $login;
@@ -30,6 +32,14 @@ class PladformApi
         $this->storedir = $storedir;
     }
     
+    public function setReportService($report_service) {
+        $this->report_service = $report_service;
+    }
+    
+    public function setLogger($logger) {
+        $this->logger = $logger;
+    }
+    
     public function getError() {
         return $this->error;
     }
@@ -38,9 +48,6 @@ class PladformApi
         return $this->downloaded_filename;
     }
     
-    public function setPladformService($pladform_service) {
-        $this->pladform_service = $pladform_service;
-    }
 
     /**
      * Method returns API token
@@ -82,8 +89,7 @@ class PladformApi
                 'Authorization: Bearer ' . $token
             ));
             
-            $this->pladform_service->setDataFileRowParam(PladformService::PARAM_LAST_UPDATE_DATE, time());
-            $this->pladform_service->saveData();
+            $this->report_service->update(array('last_update_date' => date("Y-m-d H:i:s")));
             
             if (empty($this->error)) // в случае отсутствия ошибок продвигаемся дальше
             {         
@@ -126,13 +132,18 @@ class PladformApi
         curl_setopt($ch, CURLOPT_FILE, $fp); 
         curl_exec($ch);
         
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if($httpCode < 200 || $httpCode >= 300) 
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if($http_code < 200 || $http_code >= 300) 
         {
-            $this->error[] = "API Pladform вернул на запрос <b>'" . $url . "'</b> http-code=" . $httpCode . '. Ожидалось 20X.';
+            $this->error[] = "API Pladform вернул на запрос <b>'" . $url . "'</b> http-code=" . $http_code . '. Ожидалось 20X.';
         }
         curl_close($ch);
         fclose($fp);
+        
+        $message = "Request: " . $url . "\n"
+                 . "to file: " . $tofile . "\n"
+                 . "response: http code=" . $http_code ;    
+        $this->logger->log($message);
         
     }
     
@@ -155,11 +166,11 @@ class PladformApi
         }
         
         $body = curl_exec($ch);
-        
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if($httpCode < 200 || $httpCode >= 300) 
+        echo $url;
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if($http_code < 200 || $http_code >= 300) 
         {
-            $this->error[] = "API Pladform вернул на запрос <b>'" . $url . "'</b> http-code=" . $httpCode . '. Ожидалось 20X.';
+            $this->error[] = "API Pladform вернул на запрос <b>'" . $url . "'</b> http-code=" . $http_code . '. Ожидалось 20X.';
         }
         else
         {
@@ -169,9 +180,15 @@ class PladformApi
             }
         }
         
-        //print_r($body);
-        
         curl_close($ch);
+        
+        $message = "Request: " . $url . "\n"
+                 . (!empty($post)    ? "post: " . json_encode($post) . "\n"       : "")
+                 . (!empty($headers) ? "headers: " . json_encode($headers) . "\n" : "")
+                 . "response: http code=" . $http_code . "\n"
+                 . $body;        
+        $this->logger->log($message);
+
         return $body;
     }
 }
