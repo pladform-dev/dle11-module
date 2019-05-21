@@ -50,7 +50,7 @@ class ApiListener implements JsonListener
                 {
                     $category_alt_name = $this->translit($video['relationships']['category']['title']) . "-" . $category_id;
                     $this->query("SELECT id FROM " . PREFIX . "_category WHERE alt_name='" . $category_alt_name . "'");
-                    $row = $this->db->getRow();
+                    $row = $this->db->get_row();
                     if (isset($row['id'])) 
                     {
                         $this->categories[$category_id] = $row['id'];
@@ -207,7 +207,7 @@ class ApiListener implements JsonListener
 
 
         $this->query("SELECT id FROM " . PREFIX . "_post WHERE alt_name='" . $video['id'] . "'");
-        $row = $this->db->getRow();
+        $row = $this->db->get_row();
         if(!empty($row['id'])) 
         {
             $this->logger->log("Отфильтровано по существующему видео. ID:" . $video['id']);

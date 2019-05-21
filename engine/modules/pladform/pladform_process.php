@@ -91,7 +91,7 @@ $reportService->update(array(
     'parsing_time_start' => date("Y-m-d H:i:s"),
     'last_update_date'   => date("Y-m-d H:i:s"),
 ));
-die("fffffff");
+
 // парсим файл
 $parser = new JsonParser();
 $listener = new ApiListener($db, $pladform_config, $service, $logger);

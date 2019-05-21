@@ -52,6 +52,7 @@ if ($is_available_actions)
         if( $action == "run" ) 
         {
             PladformService::runProcess();
+            $is_run_process = true;
             sleep(2); // поспим чтобы прошли процессы старта
         }
         else if( $action == "clear" ) 
