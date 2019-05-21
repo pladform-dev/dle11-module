@@ -94,7 +94,7 @@ $reportService->update(array(
 
 // парсим файл
 $parser = new JsonParser();
-$listener = new ApiListener($db, $pladform_config, $service, $logger);
+$listener = new ApiListener($db, $pladform_config, $reportService, $logger);
 $parser->parse(ENGINE_DIR . "/modules/pladform/storage/" . $api->getDownloadedFilename(), $listener);
 
 $reportService->update(array(
