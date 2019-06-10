@@ -29,10 +29,8 @@ class ApiListener implements JsonListener
      * @todo метатеги 
      */
     public function onObjectFound($jsonObject)
-    {
+    {   
         $this->all_count ++;
-        
-        
         try {
         
             $video = json_decode($jsonObject, true);
@@ -224,9 +222,9 @@ class ApiListener implements JsonListener
     private function query($query)
     {
         $this->logger->log($query);
-        $query_id =$this->db->query($query, false);
+        $query_id = $this->db->query($query, false);
         
-        $mysql_error = mysqli_error($this->db_id);
+        $mysql_error = mysqli_error($query_id);
         if (!empty($mysql_error))
         {
             $this->logger->log($mysql_error);
@@ -245,7 +243,13 @@ class ApiListener implements JsonListener
 
     public function onError(\Exception $e)
     {
-        //echo date('H:i:s') . "> Exception: " . $e->getMessage();
+        $this->logger->log($e->getMessage());
+        $this->report_service->update(array(
+            'status'           => PladformService::STATUS_PARSING_ERROR,
+            'parsing_time_end' => date("Y-m-d H:i:s"),
+            'last_update_date' => date("Y-m-d H:i:s"),
+            'last_error'       => $e->getMessage(),
+        ));
     }
 
     public function onStreamRead($textChunk, $streamPosition)

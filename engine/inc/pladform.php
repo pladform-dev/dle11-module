@@ -7,44 +7,19 @@ if( ! defined( 'DATALIFEENGINE' ) ) {
 set_time_limit(0);
 ini_set('max_execution_time', 0); // контрольный. Иногда только так и работает
 
-require_once ENGINE_DIR . '/modules/pladform/autoload.php';
+define('PLADFORM_PATH', ENGINE_DIR . "/modules/pladform"); 
+define('STORE_PATH', PLADFORM_PATH . "/storage"); 
+require_once PLADFORM_PATH . '/autoload.php';
+
 echoheader("Pladform", "Админпанель модуля Pladform");
 
-$is_available_actions = true;
-// проверить наличие всех модулей
-if (!extension_loaded("curl")) 
+if($pladform_config['login'] == 'login')
 {
-    $is_available_actions = false;
-    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-bell"></i></span>Не установлено расширение php-curl.</div>';
+    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-ok-warn"></i></span><b>Вероятно вы забыли настроить конфигурацию модуля в файле '.PLADFORM_PATH.'/config.php</b></div>';
 }
-    
-if (!extension_loaded("mbstring")) 
+else
 {
-    $is_available_actions = false;
-    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-bell"></i></span>Не установлено расширение php-mbstring.</div>';
-}
-    
-if (!extension_loaded("json")) 
-{
-    $is_available_actions = false;
-    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-bell"></i></span>Не установлено расширение php-json.</div>';
-}
-    
-$store_path = ENGINE_DIR . "/modules/pladform/storage";
-if (!is_writable($store_path)) 
-{
-    $is_available_actions = false;
-    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-bell"></i></span>Дирректория <b>' . $store_path . '</b> не доступна для записи.</div>';
-}
-    
-if (ini_get('max_execution_time') > 0 && ini_get('max_execution_time') < 3600) 
-{
-    $is_available_actions = false;
-    echo '<div class="well relative"><span class="triangle-button red"><i class="icon-bell"></i></span>Установите переменную PHP <b>max_execution_time=0</b> или более 3600 сек., т.к. для обработки файлов требуется долгое время обработки.<br>Текущее значение: <b>max_execution_time=' . ini_get('max_execution_time') . '</b></div>';
-}
 
-if ($is_available_actions)
-{
     $reportService = new ReportService($db);
     $is_run_process = PladformService::isRunProcess();
     if (!$is_run_process) 
@@ -65,8 +40,8 @@ if ($is_available_actions)
         }
     }
 
-    $freespace = disk_free_space($store_path);
-    $totalspace = disk_total_space($store_path);
+    $freespace = disk_free_space(STORE_PATH);
+    $totalspace = disk_total_space(STORE_PATH);
     $reports = $reportService->getAll();
     
     ?>
@@ -89,7 +64,7 @@ if ($is_available_actions)
         <div class="box-content">
             <div class="row box-section">
                 <p>
-                    <b>Дирректория хранения файлов выгрузки:</b> '<?php echo $store_path; ?>' 
+                    <b>Дирректория хранения файлов выгрузки:</b> '<?php echo STORE_PATH ?>' 
                 </p>
                 <p>
                     <b>Свободное место на диске:</b> <?php echo round($freespace / 1024 / 1024); ?> Mb
